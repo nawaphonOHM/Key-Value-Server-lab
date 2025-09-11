@@ -1,0 +1,118 @@
+package kv_server_with_stable_network
+
+import (
+	"runtime"
+	"testing"
+	"time"
+)
+
+// Test Put with a single client and a reliable network
+func TestReliablePut(t *testing.T) {
+	const Val = "6.5840"
+	const Ver = 0
+
+	ts := MakeTestKV(t, true)
+	defer ts.Cleanup()
+
+	ts.Begin("One client and reliable Put")
+
+	ck := ts.MakeClerk()
+	if err := ck.Put("k", Val, Ver); err != OK {
+		t.Fatalf("Put err %v", err)
+	}
+
+	if val, ver, err := ck.Get("k"); err != OK {
+		t.Fatalf("Get err %v; expected OK", err)
+	} else if val != Val {
+		t.Fatalf("Get value err %v; expected %v", val, Val)
+	} else if ver != Ver+1 {
+		t.Fatalf("Get wrong version %v; expected %v", ver, Ver+1)
+	}
+
+	if err := ck.Put("k", Val, 0); err != ErrVersion {
+		t.Fatalf("expected Put to fail with ErrVersion; got err=%v", err)
+	}
+
+	if err := ck.Put("y", Val, Tversion(1)); err != ErrNoKey {
+		t.Fatalf("expected Put to fail with ErrNoKey; got err=%v", err)
+	}
+
+	if _, _, err := ck.Get("y"); err != ErrNoKey {
+		t.Fatalf("expected Get to fail with ErrNoKey; got err=%v", err)
+	}
+}
+
+// Many clients putting on same key.
+func TestPutConcurrentReliable(t *testing.T) {
+	const (
+		PORCUPINETIME = 10 * time.Second
+		NCLNT         = 10
+		NSEC          = 1
+	)
+
+	ts := MakeTestKV(t, true)
+	defer ts.Cleanup()
+
+	ts.Begin("Test: many clients racing to put values to the same key")
+
+	rs := ts.SpawnClientsAndWait(NCLNT, NSEC*time.Second, func(me int, ck IKVClerk, done chan struct{}) ClntRes {
+		return ts.OneClientPut(me, ck, []string{"k"}, done)
+	})
+	ck := ts.MakeClerk()
+	ts.CheckPutConcurrent(ck, "k", rs, &ClntRes{}, ts.IsReliable())
+	ts.CheckPorcupineT(PORCUPINETIME)
+}
+
+// Check if memory used on server is reasonable
+func TestMemPutManyClientsReliable(t *testing.T) {
+	const (
+		NCLIENT = 100_000
+		MEM     = 1000
+	)
+
+	ts := MakeTestKV(t, true)
+	defer ts.Cleanup()
+
+	v := RandValue(MEM)
+
+	cks := make([]IKVClerk, NCLIENT)
+	for i, _ := range cks {
+		cks[i] = ts.MakeClerk()
+	}
+
+	// force allocation of ends for server in each client
+	for i := 0; i < NCLIENT; i++ {
+		if err := cks[i].Put("k", "", 1); err != ErrNoKey {
+			t.Fatalf("Put failed %v", err)
+		}
+	}
+
+	ts.Begin("Test: memory use many put clients")
+
+	// allow threads started by labrpc to start
+	time.Sleep(1 * time.Second)
+
+	runtime.GC()
+	runtime.GC()
+
+	var st runtime.MemStats
+	runtime.ReadMemStats(&st)
+	m0 := st.HeapAlloc
+
+	for i := 0; i < NCLIENT; i++ {
+		if err := cks[i].Put("k", v, Tversion(i)); err != OK {
+			t.Fatalf("Put failed %v", err)
+		}
+	}
+
+	runtime.GC()
+	time.Sleep(1 * time.Second)
+	runtime.GC()
+
+	runtime.ReadMemStats(&st)
+	m1 := st.HeapAlloc
+	f := (float64(m1) - float64(m0)) / NCLIENT
+	if m1 > m0+(NCLIENT*200) {
+		t.Fatalf("error: server using too much memory %d %d (%.2f per client)\n", m0, m1, f)
+	}
+}
