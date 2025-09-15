@@ -12,3 +12,7 @@ A course website: https://pdos.csail.mit.edu/6.824/
 1. kv_server_with_stable_network
 - My Implementation locates at `client.go` and `server.go`
 - You can test it by `go test -v ./kv_server_with_stable_network/`
+
+2. kv_server_lock_mechanism
+- My Implementation locates at `lock.go`
+- You can test it by `go test -v ./kv_server_lock_mechanism/`
