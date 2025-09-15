@@ -1,4 +1,4 @@
-package kv_server_with_drop_message
+package kv_server_with_stable_network
 
 import (
 	"log"

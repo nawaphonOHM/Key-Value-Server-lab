@@ -1,4 +1,4 @@
-package kv_server_with_drop_message
+package kv_server_with_stable_network
 
 import (
 	"fmt"
@@ -8,6 +8,8 @@ import (
 
 	"github.com/anishathalye/porcupine"
 )
+
+const linearizabilityCheckTimeout = 1 * time.Second
 
 func (ts *Test) CheckPorcupineT(nsec time.Duration) {
 	// tester.RetrieveAnnotations() also clears the accumulated annotations so
@@ -126,4 +128,8 @@ func (log *OpLog) Read() []porcupine.Operation {
 	ops := make([]porcupine.Operation, len(log.operations))
 	copy(ops, log.operations)
 	return ops
+}
+
+func (ts *Test) CheckPorcupine() {
+	ts.CheckPorcupineT(linearizabilityCheckTimeout)
 }

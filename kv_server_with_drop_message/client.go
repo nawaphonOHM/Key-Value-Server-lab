@@ -1,6 +1,8 @@
-package kv_server_with_drop_message
+package kv_server_with_stable_network
 
-import "log"
+import (
+	"time"
+)
 
 type Clerk struct {
 	clnt   *Clnt
@@ -29,10 +31,15 @@ func (ck *Clerk) Get(key string) (string, Tversion, Err) {
 	args := &GetArgs{Key: key}
 	reply := &GetReply{}
 
-	ok := ck.clnt.Call(ck.server, "KVServer.Get", args, reply)
+	for {
+		ok := ck.clnt.Call(ck.server, "KVServer.Get", args, reply)
 
-	if !ok {
-		log.Fatal("[Client->Get]: Get failed!! Exit.")
+		if ok {
+			break
+		}
+
+		time.Sleep(100 * time.Millisecond)
+
 	}
 
 	return reply.Value, reply.Version, reply.Err
@@ -59,12 +66,25 @@ func (ck *Clerk) Put(key, value string, version Tversion) Err {
 	// You will have to modify this function.
 
 	reply := &PutReply{}
+	arg := &PutArgs{Key: key, Value: value, Version: version}
 
-	ok := ck.clnt.Call(ck.server, "KVServer.Put", &PutArgs{Key: key, Value: value, Version: version}, reply)
+	hasFailed := false
 
-	if !ok {
-		log.Fatal("[Client->Put]: Put failed!! Exit.")
+	for {
+		ok := ck.clnt.Call(ck.server, "KVServer.Put", arg, reply)
+
+		if ok {
+			break
+		}
+
+		hasFailed = true
+		time.Sleep(100 * time.Millisecond)
 	}
 
-	return reply.Err
+	if hasFailed {
+		return ErrMaybe
+	} else {
+		return reply.Err
+	}
+
 }

@@ -1,4 +1,4 @@
-package kv_server_with_drop_message
+package kv_server_with_stable_network
 
 import (
 	"runtime"
@@ -115,4 +115,44 @@ func TestMemPutManyClientsReliable(t *testing.T) {
 	if m1 > m0+(NCLIENT*200) {
 		t.Fatalf("error: server using too much memory %d %d (%.2f per client)\n", m0, m1, f)
 	}
+}
+
+// Test with one client and unreliable network. If Clerk.Put returns
+// ErrMaybe, the Put must have happened, since the test uses only one
+// client.
+func TestUnreliableNet(t *testing.T) {
+	const NTRY = 100
+
+	ts := MakeTestKV(t, false)
+	defer ts.Cleanup()
+
+	ts.Begin("One client")
+
+	ck := ts.MakeClerk()
+
+	retried := false
+	for try := 0; try < NTRY; try++ {
+		for i := 0; true; i++ {
+			if err := ts.PutJson(ck, "k", i, Tversion(try), 0); err != ErrMaybe {
+				if i > 0 && err != ErrVersion {
+					t.Fatalf("Put shouldn't have happen more than once %v", err)
+				}
+				break
+			}
+			// Try put again; it should fail with ErrVersion
+			retried = true
+		}
+		v := 0
+		if ver := ts.GetJson(ck, "k", 0, &v); ver != Tversion(try+1) {
+			t.Fatalf("Wrong version %d expect %d", ver, try+1)
+		}
+		if v != 0 {
+			t.Fatalf("Wrong value %d expect %d", v, 0)
+		}
+	}
+	if !retried {
+		t.Fatalf("Clerk.Put never returned ErrMaybe")
+	}
+
+	ts.CheckPorcupine()
 }
