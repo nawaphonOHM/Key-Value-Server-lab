@@ -20,3 +20,7 @@ A course website: https://pdos.csail.mit.edu/6.824/
 3. kv_server_with_drop_message
 - My Implementation locates at `client.go` and `server.go`
 - You can test it by `go test -v ./kv_server_with_drop_message/`
+
+4. kv_server_with_unstable_network
+- My Implementation locates at `lock.go`
+- You can test it by `go test -v ./kv_server_lock_mechanism_unstable_network/`
