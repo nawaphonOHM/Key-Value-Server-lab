@@ -1,0 +1,17 @@
+name: test overnight for ${{ inputs.project_name }}
+on:
+  workflow_call:
+    inputs:
+      project_name:
+        description: 'project name to test'
+        required: true
+        type: string
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: ./.github/actions/test_steps_template
+        with:
+          project_name: ${{ inputs.project_name }}
