@@ -1,6 +1,6 @@
-name: test_steps_template
+name: test for ${{ inputs.project_name }}
 author: nawaphon
-description: test_steps_template
+description: run unit tests for ${{ inputs.project_name }}
 inputs:
   project_name:
     description: 'Project name to test'
