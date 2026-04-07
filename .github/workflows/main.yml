@@ -1,0 +1,16 @@
+name: test everynight
+on:
+  schedule:
+    - cron: '0 0 * * *'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        project_name: [ 'kv_server_lock_mechanism', 'kv_server_lock_mechanism_unstable_network', 'kv_server_with_drop_message', 'kv_server_with_stable_network' ]
+
+    steps:
+      - uses: ./.github/actions/test_steps_template
+        with:
+          project_name: ${{ matrix.project_name }}
