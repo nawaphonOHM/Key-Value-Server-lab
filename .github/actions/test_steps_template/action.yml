@@ -1,4 +1,4 @@
-name: test for ${{ inputs.project_name }}
+name: test_steps_template
 author: nawaphon
 description: run unit tests for ${{ inputs.project_name }}
 inputs:
@@ -10,6 +10,6 @@ runs:
   using: "composite"
   steps:
 
-    - name: Test
+    - name: Test ${{ inputs.project_name }}
       run: go test -v ${{ format('./{0}/', inputs.project_name) }}
       shell: bash
