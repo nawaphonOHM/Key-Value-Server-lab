@@ -23,15 +23,15 @@ type replyMsg struct {
 }
 
 type reqMsg struct {
-	endname  interface{} // name of sending ClientEnd
-	svcMeth  string      // e.g. "Raft.AppendEntries"
+	endname  any    // name of sending ClientEnd
+	svcMeth  string // e.g. "Raft.AppendEntries"
 	argsType reflect.Type
 	args     []byte
 	replyCh  chan replyMsg
 }
 
 type ClientEnd struct {
-	endname interface{}   // this end-point's name
+	endname any           // this end-point's name
 	ch      chan reqMsg   // copy of Network.endCh
 	done    chan struct{} // closed when Network is cleaned up
 }
@@ -57,12 +57,12 @@ type Server struct {
 type Network struct {
 	mu             sync.Mutex
 	reliable       bool
-	longDelays     bool                        // pause a long time on send on disabled connection
-	longReordering bool                        // sometimes delay replies a long time
-	ends           map[interface{}]*ClientEnd  // ends, by name
-	enabled        map[interface{}]bool        // by end name
-	servers        map[interface{}]*Server     // servers, by name
-	connections    map[interface{}]interface{} // endname -> servername
+	longDelays     bool               // pause a long time on send on disabled connection
+	longReordering bool               // sometimes delay replies a long time
+	ends           map[any]*ClientEnd // ends, by name
+	enabled        map[any]bool       // by end name
+	servers        map[any]*Server    // servers, by name
+	connections    map[any]any        // endname -> servername
 	endCh          chan reqMsg
 	done           chan struct{} // closed when Network is cleaned up
 	count          int32         // total RPC count, for statistics
@@ -71,7 +71,7 @@ type Network struct {
 
 // create a client end-point.
 // start the thread that listens and delivers.
-func (rn *Network) MakeEnd(endname interface{}) *ClientEnd {
+func (rn *Network) MakeEnd(endname any) *ClientEnd {
 	rn.mu.Lock()
 	defer rn.mu.Unlock()
 
@@ -92,7 +92,7 @@ func (rn *Network) MakeEnd(endname interface{}) *ClientEnd {
 
 // connect a ClientEnd to a server.
 // a ClientEnd can only be connected once in its lifetime.
-func (rn *Network) Connect(endname interface{}, servername interface{}) {
+func (rn *Network) Connect(endname any, servername any) {
 	rn.mu.Lock()
 	defer rn.mu.Unlock()
 
@@ -100,7 +100,7 @@ func (rn *Network) Connect(endname interface{}, servername interface{}) {
 }
 
 // enable/disable a ClientEnd.
-func (rn *Network) Enable(endname interface{}, enabled bool) {
+func (rn *Network) Enable(endname any, enabled bool) {
 	rn.mu.Lock()
 	defer rn.mu.Unlock()
 
@@ -110,7 +110,7 @@ func (rn *Network) Enable(endname interface{}, enabled bool) {
 // send an RPC, wait for the reply.
 // the return value indicates success; false means that
 // no reply was received from the server.
-func (e *ClientEnd) Call(svcMeth string, args interface{}, reply interface{}) bool {
+func (e *ClientEnd) Call(svcMeth string, args any, reply any) bool {
 	req := reqMsg{}
 	req.endname = e.endname
 	req.svcMeth = svcMeth
@@ -167,7 +167,7 @@ func (rn *Network) Cleanup() {
 	close(rn.done)
 }
 
-func (rn *Network) DeleteEnd(endname interface{}) {
+func (rn *Network) DeleteEnd(endname any) {
 	rn.mu.Lock()
 	defer rn.mu.Unlock()
 
@@ -182,10 +182,10 @@ func (rn *Network) DeleteEnd(endname interface{}) {
 func MakeNetwork() *Network {
 	rn := &Network{}
 	rn.reliable = true
-	rn.ends = map[interface{}]*ClientEnd{}
-	rn.enabled = map[interface{}]bool{}
-	rn.servers = map[interface{}]*Server{}
-	rn.connections = map[interface{}](interface{}){}
+	rn.ends = map[any]*ClientEnd{}
+	rn.enabled = map[any]bool{}
+	rn.servers = map[any]*Server{}
+	rn.connections = map[any](any){}
 	rn.endCh = make(chan reqMsg)
 	rn.done = make(chan struct{})
 
@@ -219,7 +219,7 @@ func MakeServerLabRPC() *Server {
 	return rs
 }
 
-func MakeService(rcvr interface{}) *Service {
+func MakeService(rcvr any) *Service {
 	svc := &Service{}
 	svc.typ = reflect.TypeOf(rcvr)
 	svc.rcvr = reflect.ValueOf(rcvr)
@@ -256,7 +256,7 @@ func (rs *Server) AddService(svc *Service) {
 	rs.services[svc.name] = svc
 }
 
-func (rn *Network) AddServer(servername interface{}, rs *Server) {
+func (rn *Network) AddServer(servername any, rs *Server) {
 	rn.mu.Lock()
 	defer rn.mu.Unlock()
 
@@ -356,8 +356,8 @@ func (rn *Network) processReq(req reqMsg) {
 
 }
 
-func (rn *Network) readEndnameInfo(endname interface{}) (enabled bool,
-	servername interface{}, server *Server, reliable bool, longreordering bool,
+func (rn *Network) readEndnameInfo(endname any) (enabled bool,
+	servername any, server *Server, reliable bool, longreordering bool,
 ) {
 	rn.mu.Lock()
 	defer rn.mu.Unlock()
@@ -399,7 +399,7 @@ func (rs *Server) dispatch(req reqMsg) replyMsg {
 	}
 }
 
-func (rn *Network) isServerDead(endname interface{}, servername interface{}, server *Server) bool {
+func (rn *Network) isServerDead(endname any, servername any, server *Server) bool {
 	rn.mu.Lock()
 	defer rn.mu.Unlock()
 
